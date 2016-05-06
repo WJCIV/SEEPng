@@ -279,6 +279,7 @@ public class Dataset implements IBuffer, OBuffer {
 		cacheFilePosition = 0;
 	}
 	
+<<<<<<< Upstream, based on Raul/master
 	public void prepareSyntheticDatasetForRead() {
 //		wPtrToBuffer.flip();
 //		wPtrToBuffer = rPtrToBuffer;
@@ -290,6 +291,105 @@ public class Dataset implements IBuffer, OBuffer {
 		readerIterator = null; // Reset and let consumer create this again as needed
 		// For file operations, reset
 		cacheFilePosition = 0;
+=======
+	private byte[] consumeDataFromMemory() {
+		// Lazily initialize Iterator
+		if(readerIterator == null) {
+			readerIterator = this.buffers.iterator();
+		}
+		
+		// Get next buffer for reading
+		if(rPtrToBuffer == null || rPtrToBuffer.remaining() == 0) {
+			// When the buffer is read completely we return it to the pool
+			if(rPtrToBuffer != null) {
+				readerIterator.remove();
+				bufferPool.returnBuffer(rPtrToBuffer);
+			}
+			if(readerIterator.hasNext()) {
+				rPtrToBuffer = readerIterator.next();
+				if(rPtrToBuffer == null) {
+					System.out.println("problem here");
+				}
+				rPtrToBuffer.flip();
+				
+//				if (!readerIterator.hasNext()) {
+//					
+//					//We caught up to the write buffer. Allocate a new buffer for writing
+//					//this.wPtrToBuffer = bufferPool._forceBorrowBuffer();
+//					this.wPtrToBuffer = this.obtainNewWPtrBuffer();
+//					//this.buffers.add(wPtrToBuffer);
+//					this.addBufferToBuffers(wPtrToBuffer);
+//					
+//					
+//					if(! buffers.isEmpty()) {
+//						//Yes, the following looks a bit silly (just getting a new iterator to the position
+//						//of the current one), but it is necessary to allow readerIterator.remove to work 
+//						//without the iterator complaining about concurrent modification due to adding a new
+//						//write buffer to the list.
+//						readerIterator = this.buffers.iterator();
+//						rPtrToBuffer = readerIterator.next();
+//						if (rPtrToBuffer.remaining() == 0) {
+//							return null;
+//						}
+//					}
+//				}
+				
+			}
+			else {
+				// done reading
+				return null;
+			}
+		}
+
+		// FIXME: This is written to handle the case of having empty dataset
+		// howver, that case should be handled in a more principled way, and before
+		if(! rPtrToBuffer.hasRemaining()) {
+			return null;
+		}
+
+		int size = rPtrToBuffer.getInt();
+		if(size == 0) {
+			return null; // done reading? FIXME: should not happen
+		}
+		byte[] data = new byte[size];
+		rPtrToBuffer.get(data);
+		return data;
+	}
+		
+	private byte[] consumeDataFromDisk() {
+		FileInputStream inputStream;
+		try {
+			inputStream = new FileInputStream(cacheFileName);
+			inputStream.getChannel().position(cacheFilePosition);
+			
+			//It is used, in the while condition just below, but Eclipse's analyzer isn't 
+			//smart enough to figure that out. This just saves us a warning.
+			@SuppressWarnings("unused")
+			int readSuccess;
+			byte[] recordSizeBytes = new byte[Integer.BYTES];
+			//If there is another record the next few bytes will be an int containing the size of said record.
+			if ((readSuccess = inputStream.read(recordSizeBytes)) != -1) {
+				//Convert the bytes giving us the size to an int and read exactly the next record
+				int recordSize = ByteBuffer.wrap(recordSizeBytes).getInt();
+				byte[] record = new byte[recordSize + Integer.BYTES];
+				System.arraycopy(recordSizeBytes, 0, record,0, Integer.BYTES);
+				inputStream.read(record, Integer.BYTES, recordSize);
+				
+				cacheFilePosition += Integer.BYTES + recordSize;
+				inputStream.close();
+				return record;
+			}
+			inputStream.close();
+			return null;
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+>>>>>>> 27a979e Revert "Iterator fixes."
 	}
 			
 	public byte[] consumeData() {
