@@ -413,14 +413,14 @@ public class DataReferenceManager {
 			Map<Integer, Set<DataReference>> outputs) {
 		for (Entry<Integer, Set<DataReference>> stage : outputs.entrySet()) {
 			for (DataReference output : stage.getValue()) {
+				Set <Integer> inputIds = new HashSet<Integer>();
+				for (DataReference input : inputs.get(stage.getKey())) {
+					inputIds.add(input.getId());
+				}
 				if (!IODependencyMap.containsKey(output.getId())) {
-					Set <Integer> inputIds = new HashSet<Integer>();
-					for (DataReference input : inputs.get(stage.getKey())) {
-						inputIds.add(input.getId());
-					}
-						IODependencyMap.put(output.getId(), inputIds);
+					IODependencyMap.put(output.getId(), inputIds);
 				} else {
-					//IODependencyMap.get(output.getId()).addAll(inputIds);
+					IODependencyMap.get(output.getId()).addAll(inputIds);
 				}
 			}
 		}
